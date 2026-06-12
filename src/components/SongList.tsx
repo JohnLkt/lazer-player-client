@@ -16,17 +16,32 @@ export const SongList = () => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteSongs({ search: debouncedSearch, size: 20 });
 
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const currentOffset = usePlayerStore((state) => state.currentOffset);
 
+  const store = usePlayerStore.getState();
   const allSongs = React.useMemo(() => {
     if (!data) return [];
     return data.pages.flat();
   }, [data]);
 
+  if (allSongs.length > 0 && store.queue.length > 0) {
+    const isThisActiveList = store.queue[0]?.id === allSongs[0]?.id;
+    if (isThisActiveList && store.queue.length !== allSongs.length) {
+      usePlayerStore.setState({ queue: allSongs });
+    }
+  }
+
+  if (store.fetchMoreTracks !== (hasNextPage ? fetchNextPage : null)) {
+    usePlayerStore.setState({
+      fetchMoreTracks: hasNextPage ? fetchNextPage : null,
+    });
+  }
+
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
   const handlePlaySong = (song: SongListItemDto, index: number) => {
     usePlayerStore.setState({ queue: allSongs });
-
-    // Set the track and sync its index offset inside that queue
     usePlayerStore.getState().setTrack(song);
     usePlayerStore.setState({ currentOffset: index });
   };
@@ -82,7 +97,7 @@ export const SongList = () => {
       )}
 
       {status === 'success' && (
-        <ul className="w-full text-card-foreground">
+        <ul className="w-full text-card-foreground p-0 m-0">
           {data.pages.map((page, pageIndex) => (
             <React.Fragment key={pageIndex}>
               {page.map((song, songIndex) => {
@@ -92,9 +107,18 @@ export const SongList = () => {
                   pageIndex === data.pages.length - 1 &&
                   songIndex === page.length - 1;
 
+                const isSelected =
+                  currentOffset === globalIndex && currentTrack?.id === song.id;
+
                 return (
                   <React.Fragment key={song.id}>
-                    <li className="transition-colors hover:bg-muted/50 rounded-md list-none">
+                    <li
+                      className={`transition-all rounded-md list-none ${
+                        isSelected
+                          ? 'ring-2 ring-primary bg-primary/5 shadow-sm'
+                          : 'hover:bg-muted/50'
+                      }`}
+                    >
                       <button
                         onClick={() => handlePlaySong(song, globalIndex)}
                         className="w-full flex items-center gap-4 p-3 text-left focus-visible:bg-muted focus-visible:outline-none rounded-md group"
@@ -112,7 +136,14 @@ export const SongList = () => {
                         )}
 
                         <div className="flex flex-col overflow-hidden">
-                          <span className="font-medium text-sm truncate text-foreground group-hover:text-primary transition-colors">
+                          {/* 4. HIGH CONTRAST TYPOGRAPHY COLOR FEEDBACK SWITCH */}
+                          <span
+                            className={`font-medium text-sm truncate transition-colors ${
+                              isSelected
+                                ? 'text-primary'
+                                : 'text-foreground group-hover:text-primary'
+                            }`}
+                          >
                             {song.title}
                           </span>
                           <span className="text-xs text-muted-foreground truncate">

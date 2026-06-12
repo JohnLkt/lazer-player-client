@@ -22,11 +22,20 @@ function SongPlayer() {
     duration,
     volume,
     setVolume,
+    setIsScrubbing,
+    setCurrentTime,
   } = usePlayerStore();
 
-  const handleSeek = (value: number[]) => {
+  const handleScrubbing = (value: number[]) => {
+    if (!currentTrack) return;
+    setIsScrubbing(true);
+    setCurrentTime(value[0]);
+  };
+
+  const handleSeekCommit = (value: number[]) => {
     if (!currentTrack) return;
     AudioAgent.seek(value[0]);
+    setIsScrubbing(false);
   };
 
   const handleVolumeChange = (value: number[]) => {
@@ -37,15 +46,13 @@ function SongPlayer() {
   const hasNext = currentTrack && currentOffset < queue.length - 1;
 
   return (
-    <div className="w-full border-t bg-background text-foreground select-none box-content pb-[env(safe-area-inset-bottom)]">
+    <div className="w-full border-t border-border bg-background text-foreground select-none box-content pb-[env(safe-area-inset-bottom)]">
       <div className="w-full px-4 md:px-6 py-3 md:py-0 md:h-20 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
-        {/* Top Control Block on Mobile / Left Column on Desktop */}
         <div className="flex items-center justify-between md:justify-start md:w-1/4 md:min-w-[180px] gap-4">
-          {/* Track Details */}
           <div className="truncate flex-1">
             {currentTrack ? (
               <>
-                <p className="font-semibold text-sm tracking-tight truncate text-card-foreground">
+                <p className="font-semibold text-sm tracking-tight truncate text-foreground">
                   {currentTrack.title}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
@@ -53,22 +60,19 @@ function SongPlayer() {
                 </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground/60 italic">
+              <p className="text-sm text-muted-foreground/70 italic">
                 No track selected
               </p>
             )}
           </div>
 
-          {/* Mobile Playback Buttons: 
-            Visible only on smaller viewports next to track info for space efficiency 
-          */}
           <div className="flex items-center gap-1 md:hidden">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => usePlayerStore.getState().previousTrack()}
               disabled={!hasPrevious}
-              className="h-8 w-8 text-muted-foreground"
+              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
             >
               <SkipBack className="h-4 w-4" fill="currentColor" />
             </Button>
@@ -91,25 +95,21 @@ function SongPlayer() {
               size="icon"
               onClick={() => usePlayerStore.getState().nextTrack()}
               disabled={!hasNext}
-              className="h-8 w-8 text-muted-foreground"
+              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
             >
               <SkipForward className="h-4 w-4" fill="currentColor" />
             </Button>
           </div>
         </div>
 
-        {/* Center Column: Handles Desktop Controls & Full Responsive Timeline Layout */}
         <div className="flex flex-col items-center gap-1.5 flex-1 w-full md:max-w-xl">
-          {/* Desktop Playback Buttons:
-            Completely hidden on mobile viewports to prevent redundant layouts
-          */}
           <div className="hidden md:flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => usePlayerStore.getState().previousTrack()}
               disabled={!hasPrevious}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
             >
               <SkipBack className="h-4 w-4" fill="currentColor" />
             </Button>
@@ -118,7 +118,7 @@ function SongPlayer() {
               size="icon"
               onClick={() => usePlayerStore.getState().setIsPlaying(!isPlaying)}
               disabled={!currentTrack}
-              className="h-9 w-9 rounded-full bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-sm"
+              className="h-9 w-9 rounded-full bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-sm disabled:opacity-30"
             >
               {isPlaying ? (
                 <Pause className="h-4 w-4" fill="currentColor" />
@@ -132,14 +132,13 @@ function SongPlayer() {
               size="icon"
               onClick={() => usePlayerStore.getState().nextTrack()}
               disabled={!hasNext}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
             >
               <SkipForward className="h-4 w-4" fill="currentColor" />
             </Button>
           </div>
 
-          {/* Interactive Timeline Row - Spans 100% width cleanly on mobile */}
-          <div className="w-full flex items-center gap-3 text-[11px] md:text-xs font-medium text-muted-foreground tracking-tighter">
+          <div className="w-full flex items-center gap-3 text-[11px] md:text-xs font-semibold text-foreground/80 tracking-tighter">
             <span className="w-8 text-right tabular-nums">
               {formatTime(currentTime)}
             </span>
@@ -149,9 +148,10 @@ function SongPlayer() {
               max={duration || 100}
               step={0.1}
               value={[currentTime]}
-              onValueChange={handleSeek}
+              onValueChange={handleScrubbing}
+              onValueCommit={handleSeekCommit}
               disabled={!currentTrack}
-              className="flex-1 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
+              className="flex-1 cursor-pointer opacity-90 hover:opacity-100 transition-opacity disabled:opacity-20"
             />
 
             <span className="w-8 text-left tabular-nums">
@@ -160,12 +160,11 @@ function SongPlayer() {
           </div>
         </div>
 
-        {/* Right Column: Volume Slider System - Hidden entirely on mobile to save vertical landscape */}
         <div className="w-1/4 justify-end items-center gap-2 hidden md:flex min-w-[140px]">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+            className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted"
             onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
           >
             {volume === 0 ? (

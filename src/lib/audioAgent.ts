@@ -1,6 +1,12 @@
 const audio = typeof window !== 'undefined' ? new Audio() : null;
 
 export const AudioAgent = {
+  initVolume: (volume: number) => {
+    if (audio) {
+      audio.volume = Math.max(0, Math.min(1, volume));
+    }
+  },
+
   playTrack: (hash: string) => {
     if (!audio) return;
 
