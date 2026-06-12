@@ -1,18 +1,30 @@
 import { Routes, Route } from 'react-router-dom';
-import LibraryPage from './pages/library/LibraryPage';
-import MusicPlayerPage from './pages/player/MusicPlayerPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import LibraryPage from './pages/library/LibraryPage';
+import SongPlayer from './components/SongPlayer';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
+  },
+});
 
 function App() {
-  const queryClient = new QueryClient();
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden">
       <QueryClientProvider client={queryClient}>
-        <Routes>
-          <Route path="/" element={<LibraryPage />} />
-          <Route path="/player/:hash" element={<MusicPlayerPage />} />
-        </Routes>
+        <main className="flex-1 w-full overflow-y-auto pt-[env(safe-area-inset-top)]">
+          <Routes>
+            <Route path="/" element={<LibraryPage />} />
+          </Routes>
+        </main>
+
+        <div className="flex-shrink-0 w-full">
+          <SongPlayer />
+        </div>
       </QueryClientProvider>
     </div>
   );
