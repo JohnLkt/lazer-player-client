@@ -2,12 +2,19 @@ import React, { useRef, useEffect } from 'react';
 import { useInfiniteSongs } from '../services/queries/songsQueries';
 import { BASE_URL } from '../services/api/config';
 import { Link } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Search, Music } from 'lucide-react';
+import useDebounce from '@/lib/hooks/useDebounce';
 
 export const SongList = () => {
   const [search, setSearch] = React.useState('');
 
+  const debouncedSearch = useDebounce(search, 400);
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useInfiniteSongs({ search, size: 20 });
+    useInfiniteSongs({ search: debouncedSearch, size: 20 });
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -32,45 +39,89 @@ export const SongList = () => {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div>
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search songs..."
-      />
+    <div className="w-full p-4 space-y-6">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search songs..."
+          className="pl-9 w-full bg-background focus-visible:ring-2"
+        />
+      </div>
 
-      {status === 'pending' && <p>Loading...</p>}
+      {status === 'pending' && (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <React.Fragment key={i}>
+              <div className="flex items-center space-x-4 p-2">
+                <Skeleton className="h-12 w-12 rounded-md" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-[60%]" />
+                  <Skeleton className="h-3 w-[40%]" />
+                </div>
+              </div>
+              {i < 4 && <Separator />}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {status === 'success' && (
-        <ul>
+        <ul className="w-full text-card-foreground">
           {data.pages.map((page, pageIndex) => (
             <React.Fragment key={pageIndex}>
-              {page.map((song) => (
-                <Link
-                  to={`/player/${song.audioFileHash}`}
-                  className="p-2 border-b flex items-center"
-                  key={song.id}
-                >
-                  {song.backgroundFileHash ? (
-                    <img
-                      src={`${BASE_URL}/image/${song.backgroundFileHash}/optimized`}
-                      alt={song.title}
-                      className="h-10 mr-2"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 mr-2 bg-gray-500"></div>
-                  )}
-                  {song.title} - {song.artist}
-                </Link>
-              ))}
+              {page.map((song, songIndex) => {
+                const isLastItem =
+                  pageIndex === data.pages.length - 1 &&
+                  songIndex === page.length - 1;
+
+                return (
+                  <React.Fragment key={song.id}>
+                    <li className="transition-colors hover:bg-muted/50 rounded-md">
+                      <Link
+                        to={`/player/${song.audioFileHash}`}
+                        className="flex items-center gap-4 p-3 focus-visible:bg-muted focus-visible:outline-none"
+                      >
+                        {song.backgroundFileHash ? (
+                          <img
+                            src={`${BASE_URL}/image/${song.backgroundFileHash}/optimized`}
+                            alt={song.title}
+                            className="h-12 w-12 rounded-md object-cover border bg-muted flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-md bg-secondary flex items-center justify-center text-muted-foreground border flex-shrink-0">
+                            <Music className="h-5 w-5" />
+                          </div>
+                        )}
+
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="font-medium text-sm truncate text-foreground">
+                            {song.title}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {song.artist}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                    {!isLastItem && <Separator className="my-1" />}
+                  </React.Fragment>
+                );
+              })}
             </React.Fragment>
           ))}
         </ul>
       )}
 
-      {/* IntersectionObserver sentinel for auto-loading next page */}
-      <div ref={loadMoreRef} style={{ height: '1px' }} />
+      {isFetchingNextPage && (
+        <div className="flex items-center justify-center py-4">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      <div ref={loadMoreRef} className="h-1" />
     </div>
   );
 };
