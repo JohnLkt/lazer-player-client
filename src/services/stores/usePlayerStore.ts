@@ -68,7 +68,14 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
           currentOffset: 0,
         });
 
-        AudioAgent.playTrack(track.audioFileHash);
+        AudioAgent.playTrack(track.audioFileHash!);
+        AudioAgent.updateMediaSession({
+          title: track.title,
+          artist: track.artist || 'Unknown Artist',
+          artwork: track.backgroundFileHash
+            ? [{ src: AudioAgent.getAssetUrl(track.backgroundFileHash) }]
+            : undefined,
+        });
       },
 
       setIsPlaying: (isPlaying) => {
@@ -112,7 +119,14 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
           isPlaying: true,
           currentOffset: currentOffset + 1,
         });
-        AudioAgent.playTrack(next.audioFileHash);
+        AudioAgent.playTrack(next.audioFileHash!);
+        AudioAgent.updateMediaSession({
+          title: next.title,
+          artist: next.artist || 'Unknown Artist',
+          artwork: next.backgroundFileHash
+            ? [{ src: AudioAgent.getAssetUrl(next.backgroundFileHash) }]
+            : undefined,
+        });
       },
 
       previousTrack: () => {
@@ -134,7 +148,14 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
           currentOffset: currentOffset - 1,
         });
 
-        AudioAgent.playTrack(prev.audioFileHash);
+        AudioAgent.playTrack(prev.audioFileHash!);
+        AudioAgent.updateMediaSession({
+          title: prev.title,
+          artist: prev.artist || 'Unknown Artist',
+          artwork: prev.backgroundFileHash
+            ? [{ src: AudioAgent.getAssetUrl(prev.backgroundFileHash) }]
+            : undefined,
+        });
       },
 
       setVolume: (volume) => {

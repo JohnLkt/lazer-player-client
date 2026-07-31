@@ -39,5 +39,70 @@ export const AudioAgent = {
     }
   },
 
+  updateMediaSession: (metadata: {
+    title: string;
+    artist: string;
+    album?: string;
+    artwork?: MediaImage[];
+  }) => {
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: metadata.title,
+        artist: metadata.artist,
+        album: metadata.album,
+        artwork: metadata.artwork,
+      });
+    }
+  },
+
+  setupMediaSession: (actions: {
+    nextTrack: () => void;
+    previousTrack: () => void;
+    setIsPlaying: (isPlaying: boolean) => void;
+    setCurrentTime: (time: number) => void;
+  }) => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
+      return;
+
+    navigator.mediaSession.setActionHandler('nexttrack', () =>
+      actions.nextTrack(),
+    );
+    navigator.mediaSession.setActionHandler('previoustrack', () =>
+      actions.previousTrack(),
+    );
+    navigator.mediaSession.setActionHandler('play', () =>
+      actions.setIsPlaying(true),
+    );
+    navigator.mediaSession.setActionHandler('pause', () =>
+      actions.setIsPlaying(false),
+    );
+    navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+      const audioInstance = AudioAgent.getAudio();
+      if (audioInstance) {
+        const offset = details.seekOffset ?? 10;
+        const targetTime = Math.max(0, audioInstance.currentTime - offset);
+        AudioAgent.seek(targetTime);
+        actions.setCurrentTime(targetTime);
+      }
+    });
+    navigator.mediaSession.setActionHandler('seekforward', (details) => {
+      const audioInstance = AudioAgent.getAudio();
+      if (audioInstance) {
+        const offset = details.seekOffset ?? 10;
+        const targetTime = Math.min(
+          audioInstance.duration || 0,
+          audioInstance.currentTime + offset,
+        );
+        AudioAgent.seek(targetTime);
+        actions.setCurrentTime(targetTime);
+      }
+    });
+  },
+
   getAudio: () => audio,
+
+  getAssetUrl: (hash: string) => {
+    const baseUrl = import.meta.env.VITE_LAZER_PLAYER_SERVER_ENDPOINT ?? '';
+    return `${baseUrl}/audio/${hash}`;
+  },
 };
