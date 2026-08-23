@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LibraryPage from './pages/library/LibraryPage';
-import SongPlayer from './components/SongPlayer';
+import { SongPlayer } from './components/SongPlayer';
 
 const queryClient = new QueryClient({
   defaultOptions: {

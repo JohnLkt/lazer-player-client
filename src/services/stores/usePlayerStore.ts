@@ -27,6 +27,7 @@ interface PlayerState {
 
 interface PlayerActions {
   playFromList: (songs: SongListItem[], index: number) => void;
+  growQueueIfSameList: (songs: SongListItem[]) => void;
   nextTrack: () => boolean;
   previousTrack: () => void;
   togglePlay: () => void;
@@ -87,6 +88,17 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
 
           playFromList: (songs, index) =>
             startTrack(songs[index], index, { queue: [...songs] }),
+
+          growQueueIfSameList: (songs) => {
+            const { queue, currentOffset } = get();
+            if (queue.length === 0 || songs.length <= queue.length) return;
+            if (songs[0]?.id !== queue[0]?.id) return;
+
+            const probeIndex = Math.min(currentOffset, queue.length - 1);
+            if (songs[probeIndex]?.id !== queue[probeIndex]?.id) return;
+
+            set({ queue: [...songs] });
+          },
 
           nextTrack: () => {
             const { queue, currentOffset } = get();

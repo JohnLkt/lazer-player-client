@@ -274,17 +274,27 @@ definition in `usePlayerStore.ts` besides the export, zero `fetchMoreTracks`.
 
 ### Phase 3 — Consumer rewiring (SongList, SongPlayer)
 
-- [ ] SongList: remove all render-phase `getState`/`setState`; derive
+- [x] SongList: remove all render-phase `getState`/`setState`; derive
       selection from selectors; replace `handlePlaySong` body with a single
       `playFromList(allSongs, globalIndex)`; move near-end prefetch into an
       effect watching page proximity (`fetchNextPage`) so auto-advance keeps
       the buffer fed without store knowledge; normalize remaining
       `React.*` usages to named imports. (Fixes P3, P4, P5, P12, P15-part.)
-- [ ] SongPlayer: per-field selectors instead of whole-store destructure;
+- [x] SongPlayer: per-field selectors instead of whole-store destructure;
       call hook actions directly in handlers (no `getState`); dedupe the
       mobile/desktop control clusters into a local `TransportControls`
       component; scrubber `max={duration || 0}`, disabled while unknown.
       (Fixes P6, P7, P16.)
+
+Phase 3 implementation notes (supersede/extend §4):
+
+- Queue growth on background refresh is a new store action
+  `growQueueIfSameList(songs)`: adopts the grown list only when head id AND
+  the id at `min(currentOffset, queue.length - 1)` both match (guards against
+  search-filtered lists shifting offsets). SongList's prefetch effect calls it
+  whenever query data changes; prefetch fires when
+  `currentOffset + PREFETCH_AHEAD >= songs.length - 1`.
+- SongPlayer is now a named export (`App.tsx` import updated).
 
 Acceptance: build + lint green; grep: zero `getState(`/`setState(` under
 `src/components/` and `src/pages/`; progress bar still tracks playback and
