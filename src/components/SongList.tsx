@@ -7,7 +7,6 @@ import { Separator } from '@/components/ui/separator';
 import { Search, Music } from 'lucide-react';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import usePlayerStore from '../services/stores/usePlayerStore';
-import type { SongListItem } from '@/services/models/SongListItem';
 
 export const SongList = () => {
   const [search, setSearch] = React.useState('');
@@ -19,31 +18,17 @@ export const SongList = () => {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const currentOffset = usePlayerStore((state) => state.currentOffset);
 
-  const store = usePlayerStore.getState();
   const allSongs = React.useMemo(() => {
     if (!data) return [];
     return data.pages.flat();
   }, [data]);
 
-  if (allSongs.length > 0 && store.queue.length > 0) {
-    const isThisActiveList = store.queue[0]?.id === allSongs[0]?.id;
-    if (isThisActiveList && store.queue.length !== allSongs.length) {
-      usePlayerStore.setState({ queue: allSongs });
-    }
-  }
-
-  if (store.fetchMoreTracks !== (hasNextPage ? fetchNextPage : null)) {
-    usePlayerStore.setState({
-      fetchMoreTracks: hasNextPage ? fetchNextPage : null,
-    });
-  }
-
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const handlePlaySong = (song: SongListItem, index: number) => {
-    usePlayerStore.setState({ queue: allSongs });
-    usePlayerStore.getState().setTrack(song);
-    usePlayerStore.setState({ currentOffset: index });
+  const playFromList = usePlayerStore((state) => state.playFromList);
+
+  const handlePlaySong = (index: number) => {
+    playFromList(allSongs, index);
   };
 
   useEffect(() => {
@@ -120,7 +105,7 @@ export const SongList = () => {
                       }`}
                     >
                       <button
-                        onClick={() => handlePlaySong(song, globalIndex)}
+                        onClick={() => handlePlaySong(globalIndex)}
                         className="w-full flex items-center gap-4 p-3 text-left focus-visible:bg-muted focus-visible:outline-none rounded-md group"
                       >
                         {song.backgroundFileHash ? (

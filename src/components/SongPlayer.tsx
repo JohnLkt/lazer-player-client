@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import usePlayerStore from '../services/stores/usePlayerStore';
-import { AudioAgent } from '@/lib/audioAgent';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -23,30 +21,18 @@ function SongPlayer() {
     duration,
     volume,
     setVolume,
-    setIsScrubbing,
-    setCurrentTime,
+    moveScrub,
+    commitScrub,
   } = usePlayerStore();
-
-  useEffect(() => {
-    AudioAgent.setupMediaSession({
-      nextTrack: () => usePlayerStore.getState().nextTrack(),
-      previousTrack: () => usePlayerStore.getState().previousTrack(),
-      setIsPlaying: (isPlaying) =>
-        usePlayerStore.getState().setIsPlaying(isPlaying),
-      setCurrentTime: (time) => usePlayerStore.getState().setCurrentTime(time),
-    });
-  }, []);
 
   const handleScrubbing = (value: number[]) => {
     if (!currentTrack) return;
-    setIsScrubbing(true);
-    setCurrentTime(value[0]);
+    moveScrub(value[0]);
   };
 
   const handleSeekCommit = (value: number[]) => {
     if (!currentTrack) return;
-    AudioAgent.seek(value[0]);
-    setIsScrubbing(false);
+    commitScrub(value[0]);
   };
 
   const handleVolumeChange = (value: number[]) => {

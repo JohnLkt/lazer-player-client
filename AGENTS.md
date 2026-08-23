@@ -237,17 +237,36 @@ concatenation outside `api/config.ts`.
 
 ### Phase 2 — Store purification + PlaybackController extraction (core)
 
-- [ ] Create `lib/audio/playbackController.ts` per §4 contracts (element,
+- [x] Create `lib/audio/playbackController.ts` per §4 contracts (element,
       listeners, MediaSession incl. `setPositionState`, slice subscriptions,
       scrub guard, `ended` → advance-or-pause).
-- [ ] Call `initPlaybackController()` once from `main.tsx` (module scope,
+- [x] Call `initPlaybackController()` once from `main.tsx` (module scope,
       outside render).
-- [ ] Slim `usePlayerStore.ts`: pure state + intents; add
+- [x] Slim `usePlayerStore.ts`: pure state + intents; add
       `playFromList`, `pendingSeek`, `applyPlaybackFacts`; unify the three
       duplicated blocks behind one internal helper; delete
       `fetchMoreTracks`/`setFetchMoreTracks`; delete `AudioAgent` usage and
       the whole bottom sync block (`190-238`).
-- [ ] Delete `lib/audioAgent.ts` when unreferenced.
+- [x] Delete `lib/audioAgent.ts` when unreferenced.
+      (Done 2026-08-23: build ✓ 553ms, lint clean.)
+
+Contract refinements discovered during implementation (supersede §4 draft):
+
+- Commands key off a `loadNonce` counter (incremented by every play intent),
+  not `currentTrack?.id` alone — re-clicking the playing row must restart it,
+  which an id-diff cannot express. Metadata still derives from `currentTrack`.
+- Extra store actions beyond the draft: `moveScrub` (drag updates; implies
+  `isScrubbing`), `seek` (programmatic seek primitive used by MediaSession
+  ±10s handlers; `commitScrub` wraps it), `setIsPlaying` (explicit intent for
+  MediaSession play/pause handlers), `togglePlay`.
+- Store wraps `subscribeWithSelector` outside `persist` — required for the
+  controller's slice subscriptions.
+- Minimal SongPlayer/SongList rewiring happened here out of necessity
+  (audioAgent deletion breaks them): scrubber now uses `moveScrub`/
+  `commitScrub`; SongList dispatches `playFromList`; render-phase queue-swap
+  and `fetchMoreTracks` install blocks deleted. Remaining Phase 3 items are
+  unchanged (selectors, TransportControls dedupe, prefetch effect,
+  namespace-import cleanup).
 
 Acceptance: build + lint green; grep gates: zero `AudioAgent`, zero
 `addEventListener` outside `lib/audio`, no statements after the store
