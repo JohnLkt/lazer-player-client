@@ -11,7 +11,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import formatTime from '@/lib/formatTime';
+import { formatTime } from '@/lib/formatTime';
 
 function SongPlayer() {
   const {

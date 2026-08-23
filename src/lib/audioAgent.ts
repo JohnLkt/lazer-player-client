@@ -1,3 +1,5 @@
+import { getAudioUrl } from '@/services/api/config';
+
 const audio = typeof window !== 'undefined' ? new Audio() : null;
 
 export const AudioAgent = {
@@ -10,9 +12,7 @@ export const AudioAgent = {
   playTrack: (hash: string) => {
     if (!audio) return;
 
-    const baseUrl = import.meta.env.VITE_LAZER_PLAYER_SERVER_ENDPOINT ?? '';
-
-    audio.src = `${baseUrl}/audio/${hash}`;
+    audio.src = getAudioUrl(hash);
     audio.load();
     audio.play().catch((err) => console.error('Playback failed:', err));
   },
@@ -100,9 +100,4 @@ export const AudioAgent = {
   },
 
   getAudio: () => audio,
-
-  getAssetUrl: (hash: string) => {
-    const baseUrl = import.meta.env.VITE_LAZER_PLAYER_SERVER_ENDPOINT ?? '';
-    return `${baseUrl}/audio/${hash}`;
-  },
 };

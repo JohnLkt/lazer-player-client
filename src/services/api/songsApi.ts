@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { SongListItemDto } from '../models/SongListItemDto';
+import type { SongListItem } from '../models/SongListItem';
 import { BASE_URL } from './config';
 
 export interface GetSongsListParams {
@@ -10,8 +10,8 @@ export interface GetSongsListParams {
 
 export const getSongsList = async (
   params?: GetSongsListParams,
-): Promise<SongListItemDto[]> => {
-  const response = await axios.get<SongListItemDto[]>(`${BASE_URL}/songs`, {
+): Promise<SongListItem[]> => {
+  const response = await axios.get<SongListItem[]>(`${BASE_URL}/songs`, {
     params,
   });
   return response.data;

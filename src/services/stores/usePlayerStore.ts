@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { SongListItemDto } from '../models/SongListItemDto';
+import type { SongListItem } from '../models/SongListItem';
 import { AudioAgent } from '@/lib/audioAgent';
+import { getAudioUrl, getImageUrl } from '../api/config';
 import type {
   InfiniteQueryObserverResult,
   InfiniteData,
 } from '@tanstack/react-query';
 
 interface PlayerState {
-  currentTrack: SongListItemDto | null;
+  currentTrack: SongListItem | null;
   currentOffset: number;
-  queue: SongListItemDto[];
+  queue: SongListItem[];
   isPlaying: boolean;
   volume: number;
   currentTime: number;
@@ -18,13 +19,13 @@ interface PlayerState {
   isScrubbing: boolean;
   fetchMoreTracks:
     | (() => Promise<
-        InfiniteQueryObserverResult<InfiniteData<SongListItemDto[]>, Error>
+        InfiniteQueryObserverResult<InfiniteData<SongListItem[]>, Error>
       >)
     | null;
 }
 
 interface PlayerActions {
-  setTrack: (track: SongListItemDto) => void;
+  setTrack: (track: SongListItem) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   nextTrack: () => Promise<void>;
   previousTrack: () => void;
@@ -34,11 +35,11 @@ interface PlayerActions {
   setFetchMoreTracks: (
     cb:
       | (() => Promise<
-          InfiniteQueryObserverResult<InfiniteData<SongListItemDto[]>, Error>
+          InfiniteQueryObserverResult<InfiniteData<SongListItem[]>, Error>
         >)
       | null,
   ) => void;
-  updateQueue: (newQueue: SongListItemDto[]) => void;
+  updateQueue: (newQueue: SongListItem[]) => void;
   setIsScrubbing: (isScrubbing: boolean) => void;
 }
 
@@ -73,7 +74,7 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
           title: track.title,
           artist: track.artist || 'Unknown Artist',
           artwork: track.backgroundFileHash
-            ? [{ src: AudioAgent.getAssetUrl(track.backgroundFileHash) }]
+            ? [{ src: getImageUrl(track.backgroundFileHash) }]
             : undefined,
         });
       },
@@ -124,7 +125,7 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
           title: next.title,
           artist: next.artist || 'Unknown Artist',
           artwork: next.backgroundFileHash
-            ? [{ src: AudioAgent.getAssetUrl(next.backgroundFileHash) }]
+            ? [{ src: getImageUrl(next.backgroundFileHash) }]
             : undefined,
         });
       },
@@ -153,7 +154,7 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
           title: prev.title,
           artist: prev.artist || 'Unknown Artist',
           artwork: prev.backgroundFileHash
-            ? [{ src: AudioAgent.getAssetUrl(prev.backgroundFileHash) }]
+            ? [{ src: getImageUrl(prev.backgroundFileHash) }]
             : undefined,
         });
       },
@@ -199,8 +200,7 @@ if (audio) {
   // If a track was restored from localStorage, but the audio hardware is empty,
   // sync the source URL so the browser is loaded and ready to play.
   if (store.currentTrack?.audioFileHash && !audio.src) {
-    const baseUrl = import.meta.env.VITE_LAZER_PLAYER_SERVER_ENDPOINT ?? '';
-    audio.src = `${baseUrl}/audio/${store.currentTrack.audioFileHash}`;
+    audio.src = getAudioUrl(store.currentTrack.audioFileHash);
     audio.load();
 
     usePlayerStore.setState({ isPlaying: false });

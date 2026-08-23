@@ -214,21 +214,22 @@ Work top-to-bottom; keep every phase green (build + lint) before moving on.
 
 ### Phase 0 — Baseline
 
-- [ ] `npm install`; then `npm run build` and `npm run lint`. Fix only
+- [x] `npm install`; then `npm run build` and `npm run lint`. Fix only
       environment-level breakage. Record results.
+      (Done 2026-08-23: build ✓ 547ms, lint clean.)
 
 ### Phase 1 — Foundations (mechanical, low-risk)
 
-- [ ] Replace `class SongListItemDto` with `export interface SongListItem`
+- [x] Replace `class SongListItemDto` with `export interface SongListItem`
       (`dateAdded: string`); update imports in songsApi/store/SongList; delete
       old file. (Fixes P10.)
-- [ ] Add `getAudioUrl(hash)` / `getImageUrl(hash, variant = 'optimized')` to
+- [x] Add `getAudioUrl(hash)` / `getImageUrl(hash, variant = 'optimized')` to
       `api/config.ts`; migrate audioAgent playback/artwork URLs and SongList
       image srcs; delete the misnamed `getAssetUrl`. No URL string building
       outside `config.ts`. (Fixes P9.)
-- [ ] Named exports for `formatTime` and `useDebounce`; update call sites.
+- [x] Named exports for `formatTime` and `useDebounce`; update call sites.
       Defer SongList/SongPlayer import cleanup to Phase 3 (same files).
-- [ ] Export `PAGE_SIZE` from `songsQueries.ts`; kill the hardcoded `20`
+- [x] Export `PAGE_SIZE` from `songsQueries.ts`; kill the hardcoded `20`
       where the hook is called. (Part of P15.)
 
 Acceptance: build + lint green; grep finds no `/audio/` or `/image/`

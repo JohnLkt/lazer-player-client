@@ -1,20 +1,20 @@
 import React, { useRef, useEffect } from 'react';
-import { useInfiniteSongs } from '../services/queries/songsQueries';
-import { BASE_URL } from '../services/api/config';
+import { useInfiniteSongs, PAGE_SIZE } from '@/services/queries/songsQueries';
+import { getImageUrl } from '@/services/api/config';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Search, Music } from 'lucide-react';
-import useDebounce from '@/lib/hooks/useDebounce';
+import { useDebounce } from '@/lib/hooks/useDebounce';
 import usePlayerStore from '../services/stores/usePlayerStore';
-import type { SongListItemDto } from '@/services/models/SongListItemDto';
+import type { SongListItem } from '@/services/models/SongListItem';
 
 export const SongList = () => {
   const [search, setSearch] = React.useState('');
   const debouncedSearch = useDebounce(search, 400);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useInfiniteSongs({ search: debouncedSearch, size: 20 });
+    useInfiniteSongs({ search: debouncedSearch });
 
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const currentOffset = usePlayerStore((state) => state.currentOffset);
@@ -40,7 +40,7 @@ export const SongList = () => {
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const handlePlaySong = (song: SongListItemDto, index: number) => {
+  const handlePlaySong = (song: SongListItem, index: number) => {
     usePlayerStore.setState({ queue: allSongs });
     usePlayerStore.getState().setTrack(song);
     usePlayerStore.setState({ currentOffset: index });
@@ -101,7 +101,7 @@ export const SongList = () => {
           {data.pages.map((page, pageIndex) => (
             <React.Fragment key={pageIndex}>
               {page.map((song, songIndex) => {
-                const globalIndex = pageIndex * 20 + songIndex;
+                const globalIndex = pageIndex * PAGE_SIZE + songIndex;
 
                 const isLastItem =
                   pageIndex === data.pages.length - 1 &&
@@ -125,7 +125,7 @@ export const SongList = () => {
                       >
                         {song.backgroundFileHash ? (
                           <img
-                            src={`${BASE_URL}/image/${song.backgroundFileHash}/optimized`}
+                            src={getImageUrl(song.backgroundFileHash)}
                             alt={song.title}
                             className="h-12 w-12 rounded-md object-cover border bg-muted flex-shrink-0"
                           />
