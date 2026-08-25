@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import LibraryPage from './pages/library/LibraryPage';
-import SongPlayer from './components/SongPlayer';
+import { LibraryPage } from './pages/library/LibraryPage';
+import { SongPlayer } from './components/SongPlayer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,7 +12,7 @@ const queryClient = new QueryClient({
   },
 });
 
-function App() {
+export function App() {
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden">
       <QueryClientProvider client={queryClient}>
@@ -29,5 +29,3 @@ function App() {
     </div>
   );
 }
-
-export default App;

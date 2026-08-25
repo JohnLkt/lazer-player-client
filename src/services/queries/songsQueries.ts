@@ -1,6 +1,8 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getSongsList } from '../api/songsApi';
 
+export const PAGE_SIZE = 20;
+
 interface UseInfiniteSongsFilters {
   search?: string;
   size?: number;
@@ -12,7 +14,7 @@ export const songKeys = {
 };
 
 export const useInfiniteSongs = (filters: UseInfiniteSongsFilters = {}) => {
-  const { search, size = 20 } = filters;
+  const { search, size = PAGE_SIZE } = filters;
 
   return useInfiniteQuery({
     queryKey: songKeys.list({ search, size }),

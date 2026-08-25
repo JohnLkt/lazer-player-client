@@ -1,50 +1,56 @@
-import React, { useRef, useEffect } from 'react';
-import { useInfiniteSongs } from '../services/queries/songsQueries';
-import { BASE_URL } from '../services/api/config';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { useInfiniteSongs, PAGE_SIZE } from '@/services/queries/songsQueries';
+import { getImageUrl } from '@/services/api/config';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Search, Music } from 'lucide-react';
-import useDebounce from '@/lib/hooks/useDebounce';
-import usePlayerStore from '../services/stores/usePlayerStore';
-import type { SongListItemDto } from '@/services/models/SongListItemDto';
+import { useDebounce } from '@/lib/hooks/useDebounce';
+import { usePlayerStore } from '../services/stores/usePlayerStore';
+
+const PREFETCH_AHEAD = 3;
 
 export const SongList = () => {
-  const [search, setSearch] = React.useState('');
+  const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 400);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useInfiniteSongs({ search: debouncedSearch, size: 20 });
+    useInfiniteSongs({ search: debouncedSearch });
 
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const currentOffset = usePlayerStore((state) => state.currentOffset);
+  const playFromList = usePlayerStore((state) => state.playFromList);
+  const growQueueIfSameList = usePlayerStore(
+    (state) => state.growQueueIfSameList,
+  );
 
-  const store = usePlayerStore.getState();
-  const allSongs = React.useMemo(() => {
-    if (!data) return [];
-    return data.pages.flat();
-  }, [data]);
-
-  if (allSongs.length > 0 && store.queue.length > 0) {
-    const isThisActiveList = store.queue[0]?.id === allSongs[0]?.id;
-    if (isThisActiveList && store.queue.length !== allSongs.length) {
-      usePlayerStore.setState({ queue: allSongs });
-    }
-  }
-
-  if (store.fetchMoreTracks !== (hasNextPage ? fetchNextPage : null)) {
-    usePlayerStore.setState({
-      fetchMoreTracks: hasNextPage ? fetchNextPage : null,
-    });
-  }
+  const allSongs = data ? data.pages.flat() : [];
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const handlePlaySong = (song: SongListItemDto, index: number) => {
-    usePlayerStore.setState({ queue: allSongs });
-    usePlayerStore.getState().setTrack(song);
-    usePlayerStore.setState({ currentOffset: index });
-  };
+  // Keep playback fed: adopt grown versions of the active list and prefetch
+  // pages before auto-advance reaches the loaded tail.
+  useEffect(() => {
+    const songs = data ? data.pages.flat() : [];
+    if (songs.length === 0) return;
+
+    growQueueIfSameList(songs);
+
+    if (
+      hasNextPage &&
+      !isFetchingNextPage &&
+      currentOffset + PREFETCH_AHEAD >= songs.length - 1
+    ) {
+      void fetchNextPage();
+    }
+  }, [
+    data,
+    currentOffset,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    growQueueIfSameList,
+  ]);
 
   useEffect(() => {
     if (!hasNextPage) return;
@@ -66,6 +72,10 @@ export const SongList = () => {
     };
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
+  const handlePlaySong = (index: number) => {
+    playFromList(allSongs, index);
+  };
+
   return (
     <div className="w-full p-4 space-y-6">
       <div className="relative">
@@ -82,7 +92,7 @@ export const SongList = () => {
       {status === 'pending' && (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <React.Fragment key={i}>
+            <Fragment key={i}>
               <div className="flex items-center space-x-4 p-2">
                 <Skeleton className="h-12 w-12 rounded-md" />
                 <div className="space-y-2 flex-1">
@@ -91,7 +101,7 @@ export const SongList = () => {
                 </div>
               </div>
               {i < 4 && <Separator />}
-            </React.Fragment>
+            </Fragment>
           ))}
         </div>
       )}
@@ -99,9 +109,9 @@ export const SongList = () => {
       {status === 'success' && (
         <ul className="w-full text-card-foreground p-0 m-0">
           {data.pages.map((page, pageIndex) => (
-            <React.Fragment key={pageIndex}>
+            <Fragment key={pageIndex}>
               {page.map((song, songIndex) => {
-                const globalIndex = pageIndex * 20 + songIndex;
+                const globalIndex = pageIndex * PAGE_SIZE + songIndex;
 
                 const isLastItem =
                   pageIndex === data.pages.length - 1 &&
@@ -111,7 +121,7 @@ export const SongList = () => {
                   currentOffset === globalIndex && currentTrack?.id === song.id;
 
                 return (
-                  <React.Fragment key={song.id}>
+                  <Fragment key={song.id}>
                     <li
                       className={`transition-all rounded-md list-none ${
                         isSelected
@@ -120,12 +130,12 @@ export const SongList = () => {
                       }`}
                     >
                       <button
-                        onClick={() => handlePlaySong(song, globalIndex)}
+                        onClick={() => handlePlaySong(globalIndex)}
                         className="w-full flex items-center gap-4 p-3 text-left focus-visible:bg-muted focus-visible:outline-none rounded-md group"
                       >
                         {song.backgroundFileHash ? (
                           <img
-                            src={`${BASE_URL}/image/${song.backgroundFileHash}/optimized`}
+                            src={getImageUrl(song.backgroundFileHash)}
                             alt={song.title}
                             className="h-12 w-12 rounded-md object-cover border bg-muted flex-shrink-0"
                           />
@@ -136,7 +146,6 @@ export const SongList = () => {
                         )}
 
                         <div className="flex flex-col overflow-hidden">
-                          {/* 4. HIGH CONTRAST TYPOGRAPHY COLOR FEEDBACK SWITCH */}
                           <span
                             className={`font-medium text-sm truncate transition-colors ${
                               isSelected
@@ -153,10 +162,10 @@ export const SongList = () => {
                       </button>
                     </li>
                     {!isLastItem && <Separator className="my-1" />}
-                  </React.Fragment>
+                  </Fragment>
                 );
               })}
-            </React.Fragment>
+            </Fragment>
           ))}
         </ul>
       )}

@@ -1,6 +1,3 @@
-import { useEffect } from 'react';
-import usePlayerStore from '../services/stores/usePlayerStore';
-import { AudioAgent } from '@/lib/audioAgent';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -11,50 +8,115 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import formatTime from '@/lib/formatTime';
+import { formatTime } from '@/lib/formatTime';
+import { usePlayerStore } from '../services/stores/usePlayerStore';
 
-function SongPlayer() {
-  const {
-    currentTrack,
-    isPlaying,
-    queue,
-    currentOffset,
-    currentTime,
-    duration,
-    volume,
-    setVolume,
-    setIsScrubbing,
-    setCurrentTime,
-  } = usePlayerStore();
+const transportButtonClassName =
+  'h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20';
 
-  useEffect(() => {
-    AudioAgent.setupMediaSession({
-      nextTrack: () => usePlayerStore.getState().nextTrack(),
-      previousTrack: () => usePlayerStore.getState().previousTrack(),
-      setIsPlaying: (isPlaying) =>
-        usePlayerStore.getState().setIsPlaying(isPlaying),
-      setCurrentTime: (time) => usePlayerStore.getState().setCurrentTime(time),
-    });
-  }, []);
+interface TransportControlsProps {
+  compact?: boolean;
+  hasTrack: boolean;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  isPlaying: boolean;
+  onPrevious: () => void;
+  onTogglePlay: () => void;
+  onNext: () => void;
+}
+
+function TransportControls({
+  compact = false,
+  hasTrack,
+  hasPrevious,
+  hasNext,
+  isPlaying,
+  onPrevious,
+  onTogglePlay,
+  onNext,
+}: TransportControlsProps) {
+  return (
+    <div
+      className={
+        compact
+          ? 'flex items-center gap-1 md:hidden'
+          : 'hidden md:flex items-center gap-3'
+      }
+    >
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onPrevious}
+        disabled={!hasPrevious}
+        className={transportButtonClassName}
+      >
+        <SkipBack className="h-4 w-4" fill="currentColor" />
+      </Button>
+
+      <Button
+        size="icon"
+        onClick={onTogglePlay}
+        disabled={!hasTrack}
+        className={
+          compact
+            ? 'h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-sm'
+            : 'h-9 w-9 rounded-full bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-sm disabled:opacity-30'
+        }
+      >
+        {isPlaying ? (
+          <Pause className="h-4 w-4" fill="currentColor" />
+        ) : (
+          <Play className="h-4 w-4 ml-0.5" fill="currentColor" />
+        )}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onNext}
+        disabled={!hasNext}
+        className={transportButtonClassName}
+      >
+        <SkipForward className="h-4 w-4" fill="currentColor" />
+      </Button>
+    </div>
+  );
+}
+
+export function SongPlayer() {
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const currentTime = usePlayerStore((state) => state.currentTime);
+  const duration = usePlayerStore((state) => state.duration);
+  const volume = usePlayerStore((state) => state.volume);
+  const hasPrevious = usePlayerStore(
+    (state) => !!state.currentTrack && state.currentOffset > 0,
+  );
+  const hasNext = usePlayerStore(
+    (state) =>
+      !!state.currentTrack && state.currentOffset < state.queue.length - 1,
+  );
+
+  const previousTrack = usePlayerStore((state) => state.previousTrack);
+  const togglePlay = usePlayerStore((state) => state.togglePlay);
+  const nextTrack = usePlayerStore((state) => state.nextTrack);
+  const setVolume = usePlayerStore((state) => state.setVolume);
+  const moveScrub = usePlayerStore((state) => state.moveScrub);
+  const commitScrub = usePlayerStore((state) => state.commitScrub);
 
   const handleScrubbing = (value: number[]) => {
     if (!currentTrack) return;
-    setIsScrubbing(true);
-    setCurrentTime(value[0]);
+    moveScrub(value[0]);
   };
 
   const handleSeekCommit = (value: number[]) => {
     if (!currentTrack) return;
-    AudioAgent.seek(value[0]);
-    setIsScrubbing(false);
+    commitScrub(value[0]);
   };
 
   const handleVolumeChange = (value: number[]) => {
     setVolume(value[0]);
   };
-
-  const hasPrevious = currentTrack && currentOffset > 0;
-  const hasNext = currentTrack && currentOffset < queue.length - 1;
 
   return (
     <div className="w-full border-t border-border bg-background text-foreground select-none box-content pb-[env(safe-area-inset-bottom)]">
@@ -77,77 +139,28 @@ function SongPlayer() {
             )}
           </div>
 
-          <div className="flex items-center gap-1 md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => usePlayerStore.getState().previousTrack()}
-              disabled={!hasPrevious}
-              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
-            >
-              <SkipBack className="h-4 w-4" fill="currentColor" />
-            </Button>
-
-            <Button
-              size="icon"
-              onClick={() => usePlayerStore.getState().setIsPlaying(!isPlaying)}
-              disabled={!currentTrack}
-              className="h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-sm"
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4" fill="currentColor" />
-              ) : (
-                <Play className="h-4 w-4 ml-0.5" fill="currentColor" />
-              )}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => usePlayerStore.getState().nextTrack()}
-              disabled={!hasNext}
-              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
-            >
-              <SkipForward className="h-4 w-4" fill="currentColor" />
-            </Button>
-          </div>
+          <TransportControls
+            compact
+            hasTrack={!!currentTrack}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            isPlaying={isPlaying}
+            onPrevious={previousTrack}
+            onTogglePlay={togglePlay}
+            onNext={nextTrack}
+          />
         </div>
 
         <div className="flex flex-col items-center gap-1.5 flex-1 w-full md:max-w-xl">
-          <div className="hidden md:flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => usePlayerStore.getState().previousTrack()}
-              disabled={!hasPrevious}
-              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
-            >
-              <SkipBack className="h-4 w-4" fill="currentColor" />
-            </Button>
-
-            <Button
-              size="icon"
-              onClick={() => usePlayerStore.getState().setIsPlaying(!isPlaying)}
-              disabled={!currentTrack}
-              className="h-9 w-9 rounded-full bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-sm disabled:opacity-30"
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4" fill="currentColor" />
-              ) : (
-                <Play className="h-4 w-4 ml-0.5" fill="currentColor" />
-              )}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => usePlayerStore.getState().nextTrack()}
-              disabled={!hasNext}
-              className="h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20"
-            >
-              <SkipForward className="h-4 w-4" fill="currentColor" />
-            </Button>
-          </div>
+          <TransportControls
+            hasTrack={!!currentTrack}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            isPlaying={isPlaying}
+            onPrevious={previousTrack}
+            onTogglePlay={togglePlay}
+            onNext={nextTrack}
+          />
 
           <div className="w-full flex items-center gap-3 text-[11px] md:text-xs font-semibold text-foreground/80 tracking-tighter">
             <span className="w-8 text-right tabular-nums">
@@ -156,12 +169,12 @@ function SongPlayer() {
 
             <Slider
               min={0}
-              max={duration || 100}
+              max={duration || 0}
               step={0.1}
               value={[currentTime]}
               onValueChange={handleScrubbing}
               onValueCommit={handleSeekCommit}
-              disabled={!currentTrack}
+              disabled={!currentTrack || duration <= 0}
               className="flex-1 cursor-pointer opacity-90 hover:opacity-100 transition-opacity disabled:opacity-20"
             />
 
@@ -197,5 +210,3 @@ function SongPlayer() {
     </div>
   );
 }
-
-export default SongPlayer;
