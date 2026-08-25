@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Search, Music } from 'lucide-react';
 import { useDebounce } from '@/lib/hooks/useDebounce';
-import usePlayerStore from '../services/stores/usePlayerStore';
+import { usePlayerStore } from '../services/stores/usePlayerStore';
 
 const PREFETCH_AHEAD = 3;
 

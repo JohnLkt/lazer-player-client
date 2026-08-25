@@ -46,31 +46,32 @@ the plan, not a description of a finished system.
 
 ---
 
-## 2. Current file map (roles as they are TODAY)
+## 2. File map (post-refactor, verified 2026-08-23)
 
-| Path | Role today |
+| Path | Role |
 | --- | --- |
-| `src/main.tsx` | Entry: StrictMode + BrowserRouter → App |
+| `src/main.tsx` | Entry: calls `initPlaybackController()` once (module scope), then StrictMode + BrowserRouter → App |
 | `src/App.tsx` | QueryClientProvider + layout composition root; renders LibraryPage + SongPlayer |
 | `src/pages/library/LibraryPage.tsx` | Thin page wrapper around SongList |
-| `src/components/SongList.tsx` | Search input, infinite-scroll song list; **currently mutates the store during render** |
-| `src/components/SongPlayer.tsx` | Bottom bar: metadata, transport controls, scrubber, volume |
+| `src/components/SongList.tsx` | Search input, infinite-scroll list; owns paging: prefetch effect, `growQueueIfSameList`, dispatches atomic `playFromList` |
+| `src/components/SongPlayer.tsx` | Bottom bar: metadata, transport, scrubber, volume; per-field selectors; module-level `TransportControls` |
 | `src/components/ui/*` | Vendored shadcn primitives (button, input, slider, separator, skeleton) — avoid editing |
-| `src/services/stores/usePlayerStore.ts` | Zustand store + persist; **entangled with AudioAgent, react-query callback, module-level audio listeners** |
-| `src/lib/audioAgent.ts` | Singleton `<audio>` + MediaSession presenter; exposes raw element via `getAudio()` |
-| `src/services/api/config.ts` | `BASE_URL` from env |
-| `src/services/api/songsApi.ts` | `GET /songs` via axios → `SongListItemDto[]` |
-| `src/services/queries/songsQueries.ts` | `useInfiniteSongs` (+ `songKeys`, `getNextPageParam`) |
-| `src/services/models/SongListItemDto.ts` | Track shape declared as a class (to become interface) |
-| `src/lib/formatTime.ts` | m:ss formatter (default export) |
-| `src/lib/hooks/useDebounce.ts` | Debounce hook (default export) |
+| `src/services/stores/usePlayerStore.ts` | Zustand store (`subscribeWithSelector` outside `persist`); pure state + intents only, no side effects |
+| `src/lib/audio/playbackController.ts` | The single imperative bridge: owns `<audio>` + MediaSession; element→store facts, store→element slice subscriptions |
+| `src/services/api/config.ts` | `BASE_URL`, `getAudioUrl(hash)`, `getImageUrl(hash, variant)` — only place URLs are built |
+| `src/services/api/songsApi.ts` | `GET /songs` via axios → `SongListItem[]` |
+| `src/services/queries/songsQueries.ts` | `useInfiniteSongs`, `songKeys`, exported `PAGE_SIZE` |
+| `src/services/models/SongListItem.ts` | Track interface (`dateAdded: string`) |
+| `src/lib/formatTime.ts` | m:ss formatter (named export) |
+| `src/lib/hooks/useDebounce.ts` | Debounce hook (named export) |
 | `src/lib/utils.ts` | `cn()` helper |
 
 ---
 
-## 3. Problem inventory (why the refactor exists)
+## 3. Problem inventory (RETIRED 2026-08-23 — all items P1–P16 resolved)
 
-Numbered for reference in the plan. Line refs are relative to `src/`.
+Kept as a historical record of why the refactor existed. Line refs refer to
+the **pre-refactor** tree and no longer match current files.
 
 - **P1 — Bidirectional store↔DOM fight.** Store actions call
   `AudioAgent.*` (`stores/usePlayerStore.ts:71,83,122,151,164`) while module-
@@ -302,23 +303,30 @@ scrubbing does not fight updates (manual check per §7 matrix items 4, 7).
 
 ### Phase 4 — Hygiene sweep
 
-- [ ] Strip residual `console.log`, narrational comments, TODO banners
+- [x] Strip residual `console.log`, narrational comments, TODO banners
       (`console.error` for genuine failures is allowed). (Fixes P11.)
-- [ ] Finish named-import normalization repo-wide (excluding vendored
-      `components/ui/*`).
-- [ ] Prettier pass on edited files (single quotes; vendored ui/* untouched).
-- [ ] Rewrite stock `README.md`: what the app is, dev/build/lint commands,
+      Verified: zero `console.log` under `src/`; the only `console.error`s
+      are genuine playback failures in `lib/audio/playbackController.ts`.
+- [x] Finish named-import normalization repo-wide (excluding vendored
+      `components/ui/*`). LibraryPage/App/main/SongPlayer are named exports;
+      `usePlayerStore` is a named export (`import { usePlayerStore }`).
+- [x] Prettier pass on edited files (single quotes; vendored ui/* untouched —
+      eslint globally ignores them).
+- [x] Rewrite stock `README.md`: what the app is, dev/build/lint commands,
       `VITE_LAZER_PLAYER_SERVER_ENDPOINT`, Tailscale dev-server note.
 
-Acceptance: `npm run lint -- --max-warnings 0` green; grep: zero
-`console.log` under `src/`.
+Acceptance (met 2026-08-23): `npm run lint -- --max-warnings 0` green; grep:
+zero `console.log` and zero `export default` under `src/` excluding ui/*.
 
 ### Phase 5 — Closeout
 
-- [ ] Full `npm run build` + `npm run lint`.
-- [ ] Run the full manual smoke matrix (§7).
-- [ ] Update this AGENTS.md: tick phases, replace §2 "today" map with the
-      post-refactor map, retire solved problem IDs.
+- [x] Full `npm run build` + `npm run lint`.
+      (Done 2026-08-23: build ✓ 558ms, lint clean incl. `--max-warnings 0`.)
+- [ ] Run the full manual smoke matrix (§7). All automated gates pass; the
+      interactive matrix needs a human on real devices (desktop + mobile,
+      MediaSession hardware keys, cold-start persistence).
+- [x] Update this AGENTS.md: tick phases, replace §2 "today" map with the
+      post-refactor map, retire solved problem IDs. (This edit.)
 
 ---
 
@@ -354,7 +362,9 @@ per phase. Manual smoke matrix (dev server, desktop + mobile viewport):
 7. Search-filter change while playing → current row highlight stays correct;
    queue adoption behaves per policy.
 8. MediaSession (lock screen / hardware keys): play/pause/next/prev/
-   seek±10s; artwork and position shown.
+   seek±10s, notification scrubber drag (`seekto`); artwork and position
+   shown. (Note: `seekto` was missing until after closeout — verify it
+   specifically.)
 9. Track missing audio hash → surfaced error, no silent stuck state.
 
 ## 8. Non-goals

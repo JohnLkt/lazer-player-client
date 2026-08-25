@@ -9,7 +9,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { formatTime } from '@/lib/formatTime';
-import usePlayerStore from '../services/stores/usePlayerStore';
+import { usePlayerStore } from '../services/stores/usePlayerStore';
 
 const transportButtonClassName =
   'h-8 w-8 text-foreground/80 hover:text-foreground hover:bg-muted disabled:opacity-20';

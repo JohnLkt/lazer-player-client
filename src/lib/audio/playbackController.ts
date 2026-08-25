@@ -1,5 +1,5 @@
 import { getAudioUrl, getImageUrl } from '@/services/api/config';
-import usePlayerStore from '@/services/stores/usePlayerStore';
+import { usePlayerStore } from '@/services/stores/usePlayerStore';
 import type { SongListItem } from '@/services/models/SongListItem';
 
 let audio: HTMLAudioElement | null = null;
@@ -17,11 +17,19 @@ function updateMetadata(track: SongListItem) {
   });
 }
 
-function syncPositionState() {
+let lastPositionSyncAt = 0;
+
+function syncPositionState(force = false) {
   if (!audio) return;
   if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
     return;
   if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+
+  // Chrome's Android notification extrapolates position between updates;
+  // refreshing more than ~1Hz only churns it. MDN recommends >= 1s spacing.
+  const now = Date.now();
+  if (!force && now - lastPositionSyncAt < 900) return;
+  lastPositionSyncAt = now;
 
   try {
     navigator.mediaSession.setPositionState({
@@ -50,22 +58,32 @@ function setupMediaSessionHandlers() {
 
   const store = usePlayerStore;
 
-  navigator.mediaSession.setActionHandler('play', () =>
-    store.getState().setIsPlaying(true),
-  );
-  navigator.mediaSession.setActionHandler('pause', () =>
-    store.getState().setIsPlaying(false),
-  );
-  navigator.mediaSession.setActionHandler('previoustrack', () =>
-    store.getState().previousTrack(),
-  );
-  navigator.mediaSession.setActionHandler('nexttrack', advanceOrPause);
-  navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+  const registerAction = (
+    action: MediaSessionAction,
+    handler: MediaSessionActionHandler,
+  ) => {
+    try {
+      navigator.mediaSession.setActionHandler(action, handler);
+    } catch {
+      // Unsupported on this platform; keep registering the remaining
+      // actions so one gap doesn't disable the rest of the notification.
+    }
+  };
+
+  registerAction('play', () => store.getState().setIsPlaying(true));
+  registerAction('pause', () => store.getState().setIsPlaying(false));
+  registerAction('previoustrack', () => store.getState().previousTrack());
+  registerAction('nexttrack', advanceOrPause);
+  registerAction('seekto', (details) => {
+    if (details.seekTime == null || !Number.isFinite(details.seekTime)) return;
+    store.getState().seek(details.seekTime);
+  });
+  registerAction('seekbackward', (details) => {
     if (!audio) return;
     const offset = details.seekOffset ?? 10;
     store.getState().seek(Math.max(0, audio.currentTime - offset));
   });
-  navigator.mediaSession.setActionHandler('seekforward', (details) => {
+  registerAction('seekforward', (details) => {
     if (!audio) return;
     const offset = details.seekOffset ?? 10;
     store
@@ -103,8 +121,12 @@ export function initPlaybackController(): void {
   audio.addEventListener('durationchange', () => {
     if (!audio) return;
     store.getState().applyPlaybackFacts({ duration: audio.duration });
-    syncPositionState();
+    syncPositionState(true);
   });
+
+  // Refresh immediately when a seek lands so the notification stops
+  // extrapolating from the pre-seek position.
+  audio.addEventListener('seeked', () => syncPositionState(true));
 
   audio.addEventListener('play', () => {
     store.getState().applyPlaybackFacts({ isPlaying: true });

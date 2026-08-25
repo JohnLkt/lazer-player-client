@@ -40,7 +40,7 @@ interface PlayerActions {
   applyPlaybackFacts: (facts: PlaybackFacts) => void;
 }
 
-const usePlayerStore = create<PlayerState & PlayerActions>()(
+export const usePlayerStore = create<PlayerState & PlayerActions>()(
   subscribeWithSelector(
     persist(
       (set, get) => {
@@ -166,5 +166,3 @@ const usePlayerStore = create<PlayerState & PlayerActions>()(
     ),
   ),
 );
-
-export default usePlayerStore;
